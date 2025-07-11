@@ -1,189 +1,298 @@
 {% extends "plantilla.html" %}
 
 {% block content %}
-<h2 style="color: #007bff; text-align: center; margin-bottom: 20px;">Chatbot</h2>
+{% load static %}
 
-<style>
-    /* Estilos existentes de tu plantilla */
-    #chatbox {
-        background-color: #f9f9f9;
-        padding: 15px;
-        border-radius: 8px;
-        width: 100%;
-        max-width: 700px;
-        margin: auto;
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        display: flex; /* Añadido para layout flexbox */
-        flex-direction: column; /* Añadido para layout flexbox */
-    }
+<!-- Botón flotante para abrir chatbot -->
+<button id="chatbot-toggle-btn" aria-label="Abrir chatbot" title="Abrir chatbot" 
+  style="
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    font-size: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    transition: background-color 0.3s ease;
+  "
+>
+  <i class="mdi mdi-robot"></i>
+</button>
 
-    #chat-history {
-        height: 300px;
-        overflow-y: auto;
-        background-color: #ffffff;
-        border: 1px solid #ccc;
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 10px; /* Espacio entre historial y input */
-    }
-
-    .user-msg {
-        color: #0056b3;
-        font-weight: bold;
-        text-align: right; /* Alinea el mensaje del usuario a la derecha */
-        margin-left: auto; /* Empuja el mensaje a la derecha */
-        padding: 5px 10px;
-        background-color: #e0f2f7; /* Fondo ligero para mensajes de usuario */
-        border-radius: 8px;
-        max-width: 80%; /* Limita el ancho del mensaje */
-        word-wrap: break-word; /* Rompe palabras largas */
-    }
-
-    .bot-msg {
-        color: black;
-        font-style: italic;
-        text-align: left; /* Alinea el mensaje del bot a la izquierda */
-        margin-right: auto; /* Empuja el mensaje a la izquierda */
-        padding: 5px 10px;
-        background-color: #f0f0f0; /* Fondo ligero para mensajes del bot */
-        border-radius: 8px;
-        max-width: 80%; /* Limita el ancho del mensaje */
-        word-wrap: break-word; /* Rompe palabras largas */
-    }
-    
-    .loading-indicator {
-        color: #6c757d;
-        font-style: italic;
-        text-align: center;
-        margin: 10px 0;
-    }
-
-    .error-msg {
-        color: #dc3545; /* Rojo para errores */
-        font-weight: bold;
-    }
-
-    #input-area {
-        display: flex; /* Contenedor para input y botón */
-        gap: 10px; /* Espacio entre input y botón */
-    }
-
-    #userInput {
-        flex-grow: 1; /* El input tomará el espacio restante */
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-sizing: border-box; /* Incluye padding y border en el width */
-    }
-
-    button {
+<!-- Contenedor chatbot flotante (oculto por defecto) -->
+<div id="chatbot-container" role="dialog" aria-modal="true" aria-labelledby="chatbot-header" 
+  style="
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 350px;
+    max-height: 500px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    z-index: 10001;
+  "
+>
+  <div id="chatbot-header" 
+    style="
+      background-color: #1565c0;
+      color: white;
+      padding: 12px 16px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: grab;
+      user-select: none;
+    "
+  >
+    Chatbot Comisariato
+    <span class="close-btn" role="button" aria-label="Cerrar chatbot" tabindex="0" 
+      style="cursor: pointer; font-size: 20px; line-height: 1; transition: color 0.3s;"
+      onmouseover="this.style.color='#ffca28'"
+      onmouseout="this.style.color='white'"
+    >&times;</span>
+  </div>
+  
+  <div id="chat-history" aria-live="polite" aria-relevant="additions"
+    style="
+      padding: 15px;
+      background-color: #fcfcfc;
+      height: 350px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: thin;
+      scrollbar-color: #ccc #f9f9f9;
+    "
+  >
+    <div class="message bot"
+      style="
+        background-color: #fff3e0;
+        color: #ef6c00;
+        align-self: flex-start;
+        text-align: left;
+        border: 1px solid #ffcc80;
         padding: 10px 15px;
-        background-color: #007bff;
-        color: white;
+        border-radius: 20px;
+        margin: 8px 0;
+        max-width: 75%;
+        font-size: 14px;
+        line-height: 1.4;
+        display: inline-block;
+      "
+    >
+      👋 ¡Bienvenido/a al chatbot del comisariato! Puedes preguntarme por los productos más vendidos, el stock disponible o las ventas del día.
+    </div>
+  </div>
+
+  <div id="input-area" 
+    style="display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid #ddd;"
+  >
+    <input type="text" id="userInput" placeholder="Escribe tu mensaje aquí..." aria-label="Escribe tu mensaje" autocomplete="off"
+      style="
+        flex-grow: 1;
+        padding: 10px 15px;
+        border-radius: 25px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s ease;
+      "
+    />
+    <button id="sendBtn" aria-label="Enviar mensaje"
+      style="
+        background-color: #ffca28;
         border: none;
-        border-radius: 4px;
+        color: #212121;
+        font-weight: bold;
+        padding: 10px 18px;
+        border-radius: 25px;
         cursor: pointer;
-        transition: background-color 0.2s;
-        flex-shrink: 0; /* Evita que el botón se encoja */
-    }
-
-    button:hover {
-        background-color: #0056b3;
-    }
-</style>
-
-<div id="chatbox">
-    <div id="chat-history">
-        <p class="bot-msg">¡Hola! Pregúntame algo sobre tus datos. Por ejemplo: "ingresos totales", "producto más vendido", "clientes activos".</p>
-    </div>
-    <div id="input-area">
-        <input type="text" id="userInput" placeholder="Escribe tu mensaje...">
-        <button onclick="sendMessage()">Enviar</button>
-    </div>
+        transition: background-color 0.3s ease;
+      "
+      onmouseover="this.style.backgroundColor='#fdd835'"
+      onmouseout="this.style.backgroundColor='#ffca28'"
+    >
+      Enviar
+    </button>
+  </div>
 </div>
 
 <script>
-    async function sendMessage() {
-        const userInput = document.getElementById("userInput");
-        const userMessage = userInput.value.trim();
-        const chatHistory = document.getElementById("chat-history");
-
-        if (!userMessage) return;
-
-        // Mostrar mensaje del usuario
-        chatHistory.innerHTML += `<p class="user-msg">Tú: ${userMessage}</p>`;
-        userInput.value = ""; // Limpiar input
-
-        // Mostrar indicador de carga
-        const loadingDiv = document.createElement('p');
-        loadingDiv.className = 'loading-indicator';
-        loadingDiv.textContent = 'Chatbot: Pensando...';
-        chatHistory.appendChild(loadingDiv);
-        chatHistory.scrollTop = chatHistory.scrollHeight; // Desplazar al final
-
-        try {
-            // CAMBIO CLAVE AQUÍ: La URL de la API ahora es '/api/chatbot/'
-            const response = await fetch("/api/chatbot/", { 
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    // Si usas CSRF token en tu frontend, inclúyelo aquí
-                    // 'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ mensaje: userMessage }),
-            });
-
-            const data = await response.json();
-
-            // Eliminar indicador de carga
-            chatHistory.removeChild(loadingDiv);
-
-            // Procesar la respuesta del backend
-            if (response.ok) {
-                if (data.tipo_respuesta === 'respuesta_final_llm') {
-                    chatHistory.innerHTML += `<p class="bot-msg">Chatbot: ${data.respuesta_bot}</p>`;
-                } else if (data.tipo_respuesta === 'error_llm') {
-                    chatHistory.innerHTML += `<p class="bot-msg error-msg">Chatbot (Error de IA): ${data.respuesta_bot}</p>`;
-                } else {
-                    chatHistory.innerHTML += `<p class="bot-msg error-msg">Chatbot: Respuesta inesperada del servidor.</p>`;
-                    console.error("Respuesta inesperada del servidor:", data);
-                }
-            } else {
-                chatHistory.innerHTML += `<p class="bot-msg error-msg">Chatbot (Error del servidor): ${data.error || 'Ocurrió un error desconocido.'}</p>`;
-                console.error("Error del servidor:", data);
+  // Obtener cookie CSRF para Django
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
             }
-
-        } catch (error) {
-            // Eliminar indicador de carga
-            chatHistory.removeChild(loadingDiv);
-            console.error('Error en la petición:', error);
-            chatHistory.innerHTML += `<p class="bot-msg error-msg">Chatbot (Error de conexión): ${error.message}</p>`;
-        } finally {
-            chatHistory.scrollTop = chatHistory.scrollHeight; // Asegurar scroll al final
         }
     }
+    return cookieValue;
+  }
 
-    // Función para obtener el token CSRF (si lo necesitas, descomenta en fetch headers)
-    // function getCookie(name) {
-    //     let cookieValue = null;
-    //     if (document.cookie && document.cookie !== '') {
-    //         const cookies = document.cookie.split(';');
-    //         for (let i = 0; i < cookies.length; i++) {
-    //             const cookie = cookies[i].trim();
-    //             if (cookie.substring(0, name.length + 1) === (name + '=')) {
-    //                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-    //                 break;
-    //             }
-    //         }
-    //     }
-    //     return cookieValue;
-    // }
+  // Mostrar mensaje en pantalla
+  function showMessage(message, type) {
+    const chatHistory = document.getElementById("chat-history");
+    const div = document.createElement("div");
 
-    // Permitir enviar con Enter
-    document.getElementById("userInput").addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
+    div.className = `message ${type}`;
+    div.style.padding = "10px 15px";
+    div.style.borderRadius = "20px";
+    div.style.margin = "8px 0";
+    div.style.maxWidth = "75%";
+    div.style.wordWrap = "break-word";
+    div.style.fontSize = "14px";
+    div.style.lineHeight = "1.4";
+    div.style.display = "inline-block";
+
+    if(type === "user") {
+      div.style.backgroundColor = "#e0f2f1";
+      div.style.color = "#00695c";
+      div.style.alignSelf = "flex-end";
+      div.style.textAlign = "right";
+      div.style.border = "1px solid #004d40";
+      div.innerHTML = `<strong>Tú:</strong> ${message.replace(/\n/g, "<br>")}`;
+    } else if(type === "bot") {
+      div.style.backgroundColor = "#fff3e0";
+      div.style.color = "#ef6c00";
+      div.style.alignSelf = "flex-start";
+      div.style.textAlign = "left";
+      div.style.border = "1px solid #ffcc80";
+      div.innerHTML = `<strong>Chatbot:</strong> ${message.replace(/\n/g, "<br>")}`;
+    } else if(type === "error") {
+      div.style.backgroundColor = "#ffebee";
+      div.style.color = "#b71c1c";
+      div.style.border = "1px solid #f44336";
+      div.style.fontWeight = "600";
+      div.style.textAlign = "center";
+      div.style.maxWidth = "100%";
+      div.innerHTML = message;
+    }
+
+    chatHistory.appendChild(div);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+  }
+
+  // Mostrar "Pensando..."
+  function showThinkingIndicator() {
+    const chatHistory = document.getElementById("chat-history");
+    const div = document.createElement("div");
+    const id = "thinking-" + Date.now();
+
+    div.id = id;
+    div.className = "message thinking";
+    div.style.fontStyle = "italic";
+    div.style.color = "#757575";
+    div.style.textAlign = "left";
+    div.style.maxWidth = "100%";
+    div.innerHTML = "<strong>Chatbot:</strong> <em>Pensando...</em>";
+
+    chatHistory.appendChild(div);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+    return id;
+  }
+
+  // Quitar "Pensando..."
+  function removeThinkingIndicator(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  // Enviar mensaje al backend
+  async function sendMessage() {
+    const userInput = document.getElementById("userInput");
+    const userMessage = userInput.value.trim();
+
+    if (!userMessage) {
+      showMessage("Por favor escribe un mensaje", "error");
+      return;
+    }
+
+    showMessage(userMessage, "user");
+
+    const thinkingId = showThinkingIndicator();
+
+    try {
+      const response = await fetch("/api/chatbot/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      removeThinkingIndicator(thinkingId);
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+
+      if (data.respuesta_bot) {
+        showMessage(data.respuesta_bot, "bot");
+      } else if (data.error) {
+        showMessage(`⚠️ ${data.error}`, "error");
+      } else {
+        throw new Error("Respuesta inesperada del servidor");
+      }
+
+    } catch (error) {
+      console.error("Error:", error);
+      removeThinkingIndicator(thinkingId);
+      showMessage(`Error de conexión: ${error.message}`, "error");
+    } finally {
+      userInput.value = "";
+      userInput.focus();
+    }
+  }
+
+  // Mostrar chatbot
+  function mostrarChatbot() {
+    document.getElementById("chatbot-container").style.display = "flex";
+    document.getElementById("chatbot-toggle-btn").style.display = "none";
+    document.getElementById("userInput").focus();
+  }
+
+  // Ocultar chatbot
+  function cerrarChatbot() {
+    document.getElementById("chatbot-container").style.display = "none";
+    document.getElementById("chatbot-toggle-btn").style.display = "flex";
+  }
+
+  // Eventos al cargar la página
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    document.getElementById("chatbot-toggle-btn").addEventListener("click", mostrarChatbot);
+    document.querySelector("#chatbot-header .close-btn").addEventListener("click", cerrarChatbot);
+
+    document.getElementById("userInput").addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMessage();
+      }
     });
+  });
 </script>
+
 {% endblock %}
