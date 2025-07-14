@@ -15,9 +15,9 @@ function getCookie(name) {
 }
 
 // Enviar mensaje al backend
-async function sendMessage() {
+async function sendMessage(message = null) {
     const userInput = document.getElementById("userInput");
-    const userMessage = userInput.value.trim();
+    const userMessage = message || userInput.value.trim();
 
     if (!userMessage) {
         showMessage("Por favor escribe un mensaje", "error");
@@ -25,7 +25,6 @@ async function sendMessage() {
     }
 
     showMessage(userMessage, "user");
-
     const thinkingId = showThinkingIndicator();
 
     try {
@@ -46,9 +45,11 @@ async function sendMessage() {
 
         const data = await response.json();
 
-        // CORREGIDO: antes decía data.response, ahora es data.respuesta_bot
         if (data.respuesta_bot) {
             showMessage(data.respuesta_bot, "bot");
+            if (data.sugerencias && Array.isArray(data.sugerencias)) {
+                showSuggestions(data.sugerencias);
+            }
         } else if (data.error) {
             showMessage(`⚠️ ${data.error}`, "error");
         } else {
@@ -64,7 +65,6 @@ async function sendMessage() {
         userInput.focus();
     }
 }
-
 
 // Mostrar mensaje en pantalla
 function showMessage(message, type) {
@@ -109,47 +109,54 @@ function scrollChatToBottom() {
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
-// Insertar ejemplos
-function showExampleQuestions() {
-    const examples = [
-        "Cuál es el último pedido",
-        "Muestra los productos más caros",
-        "Productos más baratos",
-        "Lista de contactos recientes",
-        "Qué métodos de pago aceptan",
-        "Detalle del último pedido",
-        "Productos con más stock",
-        "Pedidos pendientes",
-        "Total de clientes registrados"
-    ];
+// Mostrar sugerencias después de la respuesta
+function showSuggestions(suggestions) {
+    const chatHistory = document.getElementById("chat-history");
 
     const container = document.createElement("div");
-    container.className = "examples-container";
-    container.innerHTML = "<p>Prueba con:</p><ul>" + 
-        examples.map(q => `<li onclick="fillExample('${q}')">${q}</li>`).join("") +
-        "</ul>";
+    container.className = "message bot";
+    container.innerHTML = "<strong>¿También podrías preguntar?:</strong><ul style='padding-left: 20px;'>";
 
-    const chatContainer = document.getElementById("chat-container");
-    if (chatContainer) chatContainer.appendChild(container);
-}
+    suggestions.forEach(s => {
+        container.innerHTML += `<li style="cursor:pointer; color:#1565c0;" onclick="sendMessage('${s.replace(/'/g, "\\'")}')">${s}</li>`;
+    });
 
-// Rellenar input con ejemplo
-function fillExample(text) {
-    const input = document.getElementById("userInput");
-    input.value = text;
-    input.focus();
+    container.innerHTML += "</ul>";
+    chatHistory.appendChild(container);
+    scrollChatToBottom();
 }
 
 // Mostrar chatbot flotante
 function mostrarChatbot() {
     const chatbot = document.getElementById("chatbot-container");
-    if(chatbot) chatbot.style.display = "block";
+    if(chatbot) chatbot.style.display = "flex";
 }
 
 // Ocultar chatbot flotante
 function cerrarChatbot() {
     const chatbot = document.getElementById("chatbot-container");
     if(chatbot) chatbot.style.display = "none";
+}
+
+// Cargar preguntas de ejemplo iniciales
+function showExampleQuestions() {
+    const examples = [
+        "¿Cuál es el último pedido?",
+        "¿Qué productos tienen más stock?",
+        "¿Cuántos pedidos se hicieron hoy?"
+    ];
+
+    const container = document.createElement("div");
+    container.className = "message bot";
+    container.innerHTML = "<strong>Ejemplos para comenzar:</strong><ul style='padding-left: 20px;'>";
+
+    examples.forEach(q => {
+        container.innerHTML += `<li style="cursor:pointer; color:#1565c0;" onclick="sendMessage('${q.replace(/'/g, "\\'")}')">${q}</li>`;
+    });
+
+    container.innerHTML += "</ul>";
+    document.getElementById("chat-history").appendChild(container);
+    scrollChatToBottom();
 }
 
 // Eventos cuando se carga la página

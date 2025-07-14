@@ -6,7 +6,7 @@ import mysql.connector
 import os
 from dotenv import load_dotenv
 import openai
-from .process_query import process_query
+from .process_query import process_query  # asegúrate que esta función esté correctamente implementada
 
 # Cargar variables de entorno
 load_dotenv()
@@ -34,13 +34,15 @@ def chatbot_view(request):
         if not user_message:
             return JsonResponse({'error': 'Mensaje vacío'}, status=400)
 
-        sql_query, tipo = process_query(user_message)
+        # Generar consulta SQL y tipo de respuesta
+        sql_query, tipo, sugerencias = process_query(user_message)
 
         if tipo == "error":
             return JsonResponse({
                 'respuesta_bot': sql_query,
                 'tipo_respuesta': 'error_llm',
                 'mensaje_usuario': user_message,
+                'sugerencias': sugerencias
             })
 
         try:
@@ -51,12 +53,20 @@ def chatbot_view(request):
             if sql_query.strip().upper().startswith("SELECT"):
                 column_names = [col[0] for col in cursor.description]
                 rows = cursor.fetchall()
+
+                # Limitar a 20 filas si hay muchas
+                rows = rows[:20]
                 data_rows = [dict(zip(column_names, row)) for row in rows]
+
+                # Truncar si el JSON resultante es muy grande
+                resumen_datos = json.dumps(data_rows, indent=2, default=str)
+                if len(resumen_datos) > 8000:
+                    resumen_datos = resumen_datos[:8000] + "\n... (resultado truncado)"
 
                 prompt = f"""
                 El usuario preguntó: "{user_message}"
-                Resultado de la base de datos:
-                {json.dumps(data_rows, indent=2, default=str)}
+                Resultado de la base de datos (máx. 20 filas):
+                {resumen_datos}
 
                 Crea una respuesta clara y en español. Usa listas o tablas si es posible.
                 """
@@ -67,10 +77,12 @@ def chatbot_view(request):
                         {"role": "system", "content": "Eres un asistente amigable de datos MySQL."},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.5
+                    temperature=0.5,
+                    max_tokens=700
                 )
 
                 texto = response.choices[0].message.content.strip()
+
             else:
                 connection.commit()
                 texto = f"La consulta se ejecutó correctamente. Filas afectadas: {cursor.rowcount}."
@@ -86,7 +98,8 @@ def chatbot_view(request):
 
         return JsonResponse({
             'respuesta_bot': texto,
-            'consulta_sql_generada': sql_query
+            'consulta_sql_generada': sql_query,
+            'sugerencias': sugerencias
         })
 
     except json.JSONDecodeError:
@@ -94,5 +107,6 @@ def chatbot_view(request):
     except Exception as e:
         return JsonResponse({'error': f'Error general: {str(e)}'}, status=500)
 
+# Vista para renderizar plantilla HTML del chatbot
 def plantilla(request):
     return render(request, "chatbot.html")

@@ -95,7 +95,7 @@
         display: inline-block;
       "
     >
-      👋 ¡Bienvenido/a al chatbot del comisariato! Puedes preguntarme por los productos más vendidos, el stock disponible o las ventas del día.
+      👋 ¡Bienvenido/a al chatbot del comisariato Granados! En que puedo ayudarte.
     </div>
   </div>
 
@@ -251,6 +251,46 @@
 
       if (data.respuesta_bot) {
         showMessage(data.respuesta_bot, "bot");
+
+        // === Aquí agregamos la implementación para mostrar botones con sugerencias ===
+        if (data.sugerencias && Array.isArray(data.sugerencias)) {
+          const chatHistory = document.getElementById("chat-history");
+
+          // Remover contenedor de sugerencias previo si existe para no duplicar botones
+          let sugerenciasContainer = document.getElementById("sugerencias-container");
+          if (sugerenciasContainer) {
+            sugerenciasContainer.remove();
+          }
+
+          sugerenciasContainer = document.createElement("div");
+          sugerenciasContainer.id = "sugerencias-container";
+          sugerenciasContainer.style.marginTop = "10px";
+          sugerenciasContainer.style.display = "flex";
+          sugerenciasContainer.style.flexWrap = "wrap";
+          sugerenciasContainer.style.gap = "8px";
+
+          data.sugerencias.forEach((pregunta) => {
+            const btn = document.createElement("button");
+            btn.textContent = pregunta;
+            btn.className = "btn-comisariato";
+            btn.style.padding = "6px 12px";
+            btn.style.fontSize = "13px";
+            btn.style.cursor = "pointer";
+
+            btn.addEventListener("click", () => {
+              document.getElementById("userInput").value = pregunta;
+              sendMessage();
+              // Eliminar botones para que no queden visibles cuando se envía nuevo mensaje
+              sugerenciasContainer.remove();
+            });
+
+            sugerenciasContainer.appendChild(btn);
+          });
+
+          chatHistory.appendChild(sugerenciasContainer);
+          chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
       } else if (data.error) {
         showMessage(`⚠️ ${data.error}`, "error");
       } else {
